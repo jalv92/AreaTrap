@@ -22,7 +22,7 @@ SRC="$ROOT/ninjascript"
 # references and the test project is its real gate, but it belongs in this list
 # anyway: the strategy uses its types, and `nt8c check` on one file cannot see a
 # sibling's, which is what makes the concatenation necessary in the first place.
-NT8_FILES=(AreaTrapCore AreaTrapStrategy)
+NT8_FILES=(AreaTrapCore AreaTrapStrategy AreaTrapVision)
 
 echo "== 1/2  pure core + assert suite"
 dotnet run --project "$ROOT/tests" | tail -3

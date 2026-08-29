@@ -59,6 +59,15 @@ namespace NinjaTrader.NinjaScript.Strategies
         // so the flag has to be raised BEFORE the entry call, never after.
         private bool _entryInFlight;
 
+        // Trace state. A strategy that cannot tell you it is alive is a strategy you
+        // cannot debug, and this one had no heartbeat at all in its first version.
+        private AtPhase _lastPhase = AtPhase.Building;
+        private int _lastReclaims;
+        private bool _lastHadBreak;
+        private int _barsSeen;
+        private int _emptyLadderBars;
+        private bool _ladderWarned;
+
         #region Parameters
         [NinjaScriptProperty]
         [Display(Name = "Window minutes", Order = 1, GroupName = "01. Cycle")]
@@ -147,6 +156,14 @@ namespace NinjaTrader.NinjaScript.Strategies
         [NinjaScriptProperty]
         [Display(Name = "Print telemetry each session", Order = 1, GroupName = "06. Telemetry")]
         public bool PrintTelemetry { get; set; }
+
+        [NinjaScriptProperty]
+        [Display(Name = "Verbose trace (window, break, reclaim)", Order = 2, GroupName = "06. Telemetry")]
+        public bool VerboseTrace { get; set; }
+
+        [NinjaScriptProperty]
+        [Display(Name = "Bid/Ask delta (needs bid-ask tick data)", Order = 3, GroupName = "06. Telemetry")]
+        public bool UseBidAskDelta { get; set; }
         #endregion
 
         protected override void OnStateChange()
@@ -191,6 +208,12 @@ namespace NinjaTrader.NinjaScript.Strategies
                 MaxStopPoints = 12.0;
                 MinAreaPoints = 0.0;
                 PrintTelemetry = true;
+                VerboseTrace = true;
+                // UpDownTick by default. BidAsk classification needs historical bid/ask
+                // tick data and this install only has ~30 days of it for NQ, while the
+                // replay library spans far more -- outside that window the ladder comes
+                // back empty and the absorption filter silently can never pass.
+                UseBidAskDelta = false;
             }
             else if (State == State.Configure)
             {
@@ -198,7 +221,8 @@ namespace NinjaTrader.NinjaScript.Strategies
                 // at all. Without it BuyVol/SellVol are zero and that filter simply
                 // never passes, which is the honest failure rather than a fake one.
                 AddVolumetric(Instrument.FullName, BarsPeriodType.Second, 30,
-                              VolumetricDeltaType.BidAsk, TicksPerLevel);
+                              UseBidAskDelta ? VolumetricDeltaType.BidAsk : VolumetricDeltaType.UpDownTick,
+                              TicksPerLevel);
                 _volSeries = 1;
             }
             else if (State == State.DataLoaded)
@@ -277,6 +301,19 @@ namespace NinjaTrader.NinjaScript.Strategies
             AtBar bar = new AtBar(bt, Open[1], High[1], Low[1], Close[1],
                                   (long)Volume[1], buy, sell);
             AtDecision d = _engine.OnBar(bar);
+            _barsSeen++;
+
+            if (buy == 0 && sell == 0) _emptyLadderBars++;
+            if (!_ladderWarned && _barsSeen >= 20 && _emptyLadderBars == _barsSeen)
+            {
+                _ladderWarned = true;
+                Print("AreaTrap WARNING: the volumetric ladder has returned zero buy/sell volume for "
+                    + _barsSeen + " bars. Absorption can never pass. Either this replay date has no "
+                    + "bid/ask tick data (try unchecking 'Bid/Ask delta'), or the volumetric series "
+                    + "did not load.");
+            }
+
+            if (VerboseTrace) Trace(bar, d);
 
             if (d.Action == AtAction.None) return;
             if (_entryInFlight || Position.MarketPosition != MarketPosition.Flat) return;
@@ -356,6 +393,45 @@ namespace NinjaTrader.NinjaScript.Strategies
             {
                 _entryInFlight = false;
                 if (_engine != null) _engine.OnTradeClosed(Time[0]);
+            }
+        }
+
+        // One line per thing that actually happened. Silence here means the engine
+        // genuinely saw nothing, which is itself the answer when a chart looks dead.
+        private void Trace(AtBar bar, AtDecision d)
+        {
+            if (_barsSeen == 1)
+                Print(bar.Time + " AreaTrap alive: building the first " + WindowMinutes
+                    + "-minute window (" + (WindowMinutes * 2) + " bars of 30s) before it can arm.");
+
+            if (_engine.Phase != _lastPhase)
+            {
+                if (_engine.Phase == AtPhase.Armed)
+                    Print(bar.Time + " AreaTrap ARMED  VAL " + _engine.Area.Val.ToString("F2")
+                        + "  POC " + _engine.Area.Poc.ToString("F2")
+                        + "  VAH " + _engine.Area.Vah.ToString("F2")
+                        + "  width " + _engine.Area.Width.ToString("F2")
+                        + "  coverage " + (_engine.Area.Coverage * 100.0).ToString("F1") + "%");
+                else if (_engine.Phase == AtPhase.Building && _lastPhase == AtPhase.Armed)
+                    Print(bar.Time + " AreaTrap rebuilding (stale area retired or trade closed)");
+                _lastPhase = _engine.Phase;
+            }
+
+            if (_engine.HasBreak && !_lastHadBreak)
+                Print(bar.Time + " AreaTrap break, extreme " + _engine.BreakExtreme.ToString("F2"));
+            _lastHadBreak = _engine.HasBreak;
+
+            if (_engine.Telemetry.Reclaims != _lastReclaims)
+            {
+                _lastReclaims = _engine.Telemetry.Reclaims;
+                string verdict = "declining=" + (((d.VerdictMask & 1) != 0) ? "Y" : "n")
+                               + " absorption=" + (((d.VerdictMask & 2) != 0) ? "Y" : "n")
+                               + " returning=" + (((d.VerdictMask & 4) != 0) ? "Y" : "n");
+                Print(bar.Time + " AreaTrap RECLAIM  " + verdict + "  -> "
+                    + (d.Action == AtAction.None ? ("no trade (" + d.Reason + ")")
+                                                 : ("ENTER " + d.Entry.ToString("F2")
+                                                    + " stop " + d.Stop.ToString("F2")
+                                                    + " target " + d.Target.ToString("F2"))));
             }
         }
 
