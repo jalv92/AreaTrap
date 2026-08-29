@@ -25,11 +25,17 @@
 //   * The stop is CAPPED. "Below the extreme of the break" unbounded produced a
 //     $5,425 worst case on one contract and breached a Lucid 50K daily limit in
 //     26.8% of sessions. MaxStopPoints is not a preference.
-//   * The bar-close confirmation is a FILTER, and a violent one. Entering on the
-//     reclaim tick instead fires on pokes that never close back inside, and that
-//     group wins 0.6-1.4% of the time at an average of -$137 to -$248. Hence
-//     EntryMode defaults to BarClose, and ReclaimTick exists to be measured
-//     against it, not because it is a free upgrade.
+//   * EntryMode is NOT settled by measurement, and this comment used to claim it
+//     was. The pokes that fire on the reclaim tick and never close back inside are
+//     genuinely catastrophic (-$161 / -$247 average, 0.5-0.6% win rate), but the
+//     full TRADABLE stop-market set that contains them still nets out no worse
+//     than waiting for the close -- W=10: -$11.39 (PF 0.886) against the close's
+//     -$13.79 (PF 0.894); W=30: -$8.43 (PF 0.940) against -$19.65 (PF 0.902) --
+//     because the earlier fill price pays for them. The two entries are within
+//     noise of each other and no profit factor in that study carries a confidence
+//     interval, so BarClose is the default because it is the rule the video states
+//     and the one the mockup draws. A convention, not a finding. ReclaimTick is
+//     there to be measured against it, which is what the telemetry is for.
 //
 // THE VALUE-AREA RULE IS A CHOICE, NOT A CONSTANT. NinjaTrader's own
 // CalculateValueArea() is private inside an obfuscated assembly, so there is

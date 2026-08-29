@@ -130,3 +130,99 @@ Kept so they are not re-derived:
 - "POC split-half disagreement falls to 0 ticks at 8 ticks/level" — did not
   replicate (independent run: 8 ticks). Expose `ticksPerLevel` as a parameter,
   but do not justify a default with that number.
+
+---
+
+# Entry verification — 439 sessions, measured twice and adjudicated
+
+Run 2026-08-29 after the above. Two agents implemented the SAME measurement spec
+independently; a third reimplemented both, reproduced each one exactly, and ruled
+on every disagreement. Scripts in `research/`. The adjudicated one runs in ~2 min.
+
+## The question
+
+Is the entry the lever? Specifically: does a resting limit at the value area low,
+or a stop-market at VAL + 1 tick, beat the video's rule of entering on the 30-second
+close back inside the area?
+
+## Adjudicated results
+
+Costs $5.76 round turn, 2 ticks slippage on the stop-market entry and on every stop
+exit, none on the VAH target or the VAL limit fill.
+
+| W | Variant | n | win | avg $ | PF |
+|---|---|---|---|---|---|
+| 10 | CLOSE (the video's rule) | 8,425 | 42.0% | −13.79 | 0.894 |
+| 10 | STOPMKT at VAL+1t, full tradable set | 9,575 | 24.7% | −11.39 | 0.886 |
+| 10 | LIMIT @VAL touch-fill | 6,233 | 28.8% | −16.80 | 0.853 |
+| 10 | LIMIT @VAL through-fill | 6,137 | 27.7% | −21.84 | 0.812 |
+| 30 | CLOSE | 2,791 | 34.8% | −19.65 | 0.902 |
+| 30 | STOPMKT at VAL+1t, full tradable set | 2,989 | 21.5% | −8.43 | 0.940 |
+| 30 | LIMIT @VAL touch-fill | 2,385 | 26.5% | −9.68 | 0.941 |
+| 30 | LIMIT @VAL through-fill | 2,356 | 25.6% | −14.05 | 0.916 |
+
+**Every tradable cell loses.** Changing the entry does not rescue this.
+
+## What the measurement did establish
+
+- **Retest rate: 74.0% at W=10 (6,233/8,425), 85.5% at W=30 (2,385/2,791).** Both
+  runs agree on the numerator exactly. The limit branch is not starved for trades.
+- **But its fills are adversely selected by construction, not by luck.** Entry sits
+  above VAL and the stop below it, so *every* trade that stops out passes through
+  VAL on the way down — the limit fills on 100% of the losers and only on some of
+  the winners. The honest through-fill convention removes 96 of the touch-fill
+  trades at W=10 and those 96 were net winners.
+- **The reclaim-tick pokes that never close back inside are catastrophic**: n=1,153
+  at W=10 winning 0.6% at −$161.51 average; n=198 at W=30 winning 0.5% at −$247.38.
+
+## What it did NOT establish, recorded so it is not repeated
+
+- **That the bar close "is a filter doing real work."** That framing came from
+  comparing the stop-market restricted to events that closed back inside — which
+  conditions on a future event and is not tradable. On the honest full set the two
+  entries are within noise: PF 0.886 vs 0.894 at W=10, and the stop-market is
+  *better* at W=30 (0.940 vs 0.902).
+- **That W=30 limit touch-fill is "the least-bad variant."** It is PF 1.015 in the
+  first half of the sample and 0.875 in the second. Split-half ranking only.
+- **Any confidence interval at all.** Trades cluster at ~19/session (W=10) and
+  ~6.8/session (W=30); no run produced a block bootstrap. PF 0.886 vs 0.940 across
+  window sizes is NOT established as a real difference.
+- **Fill realism.** The cost model is unvalidated against real NQ fills, and the
+  limit branch assumes queue presence at VAL with no partial-fill modelling.
+
+## Leaks found in the two implementations
+
+Both were found by adjudication, neither by the scripts' own leak checks.
+
+- Run B let the reclaim tick fire **on the break bar itself** — 72.0% of its
+  stop-market population at W=10. Not executable: the order cannot be resting
+  during the second the break first happens. This single bug produced B's
+  PF 0.728, and is why the tradable number is 0.886.
+- Run B's `break_low` included the entry bar's own low on an intrabar fill, which
+  made its stop structurally unreachable on that bar — 83 target-wins and zero
+  stops, ever, on entry bars.
+- Run A resolved an intrabar fill from the *next* bar, so a second that fills you
+  and then runs your stop was invisible to it.
+- Run A marked unresolved trades at the entry price instead of the market, which
+  is where its "exactly zero winners in 198" came from. It is one winner.
+
+## NT8 order mechanics, verified against the install
+
+Settled by parsing the `.resources` tables out of `NinjaTrader.Core.dll` and
+decompiling `NinjaTrader.Cbi.Simulator`, not by reading forum posts.
+
+- **A buy limit above the market is REJECTED, not filled.** `CbiSimulatorSubmit10`:
+  *"Limit price can't be greater than current ask."* An earlier claim in this
+  project that such an order fills instantly at the market was wrong.
+- **And the historical path has no such check.** The entire assembly contains no
+  wrong-side-limit error outside the sim broker, so **the same code can fill in the
+  Strategy Analyzer and be rejected in Sim101 or live.** Any limit entry has to
+  guard its own side rather than trust the platform to.
+- **A buy stop must rest above the market** (`CbiSimulatorSubmit6`), which is what
+  a stop-market at VAL + 1 tick placed while price is below VAL is. Valid.
+- **`IsFillLimitOnTouch`** exists and historical limit fills penetrate by default,
+  with no volume or queue condition — a backtest knows only OHLC. Limit entries are
+  where the backtest flatters you most.
+- Under Standard fill resolution a market order fills at the **next primary bar's
+  open**, which is the artifact already measured in this workspace ($4,093 tick-true
+  reported as $17,777).
