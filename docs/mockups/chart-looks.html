@@ -1,0 +1,662 @@
+<title>AreaTrap Chart Studies</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@100,500;100,700;112,600&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+
+<style>
+/* ---------------------------------------------------------------- tokens
+   Light is the complete set on bare :root. Dark redefines only the values,
+   twice, so both the OS default and an explicit toggle resolve. The CHART
+   tokens are deliberately outside that system: an NT8 chart is dark, and a
+   light mock of it would be a picture of something that does not exist. */
+:root {
+  --ground:      #E9EBEE;
+  --surface:     #FFFFFF;
+  --surface-2:   #F2F4F6;
+  --line:        #D2D7DD;
+  --line-soft:   #E3E7EB;
+  --ink:         #10161E;
+  --ink-2:       #47525F;
+  --ink-3:       #6F7C8A;
+  --accent:      #B4791A;
+  --accent-soft: #F3E4C6;
+  --good:        #1C7A62;
+  --bad:         #A63C3C;
+
+  --chart-bg:    #0B0F14;
+  --chart-grid:  #17202A;
+  --chart-axis:  #55636F;
+  --chart-up:    #58B49F;
+  --chart-dn:    #C05C63;
+  --chart-wick:  #8494A1;
+  --chart-va:    #E0A63C;
+  --chart-poc:   #F2C868;
+  --chart-hot:   #FF5C4D;
+  --chart-ink:   #C9D3DC;
+  --chart-ink-2: #7C8B98;
+
+  --r: 3px;
+  --shadow: 0 1px 2px rgba(16,22,30,.06), 0 8px 24px -12px rgba(16,22,30,.18);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ground:      #0E1319;
+    --surface:     #151C24;
+    --surface-2:   #1B242E;
+    --line:        #2A3742;
+    --line-soft:   #202B35;
+    --ink:         #E3E9EF;
+    --ink-2:       #A3B0BC;
+    --ink-3:       #77848F;
+    --accent:      #E0A63C;
+    --accent-soft: #33280F;
+    --good:        #4FBF9E;
+    --bad:         #D9736F;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 10px 30px -14px rgba(0,0,0,.7);
+  }
+}
+:root[data-theme="dark"] {
+  --ground:      #0E1319;
+  --surface:     #151C24;
+  --surface-2:   #1B242E;
+  --line:        #2A3742;
+  --line-soft:   #202B35;
+  --ink:         #E3E9EF;
+  --ink-2:       #A3B0BC;
+  --ink-3:       #77848F;
+  --accent:      #E0A63C;
+  --accent-soft: #33280F;
+  --good:        #4FBF9E;
+  --bad:         #D9736F;
+  --shadow: 0 1px 2px rgba(0,0,0,.4), 0 10px 30px -14px rgba(0,0,0,.7);
+}
+
+/* ---------------------------------------------------------------- base */
+body {
+  background: var(--ground);
+  color: var(--ink);
+  font-family: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+.wrap { max-width: 1160px; margin: 0 auto; padding: 0 20px 96px; }
+
+h1, h2, h3, .display {
+  font-family: "Archivo", ui-sans-serif, system-ui, sans-serif;
+  font-variation-settings: "wdth" 112;
+  text-wrap: balance;
+  margin: 0;
+}
+.mono, .num { font-family: "IBM Plex Mono", ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+
+.eyebrow {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 11px; letter-spacing: .14em; text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+/* ---------------------------------------------------------------- head */
+header.top { padding: 56px 0 28px; display: flex; flex-direction: column; gap: 18px; }
+header.top h1 { font-size: clamp(34px, 5vw, 52px); font-weight: 700; letter-spacing: -.02em; line-height: 1.02; }
+header.top h1 em { font-style: normal; color: var(--accent); }
+.lede { max-width: 62ch; color: var(--ink-2); font-size: 16.5px; }
+
+.facts {
+  display: flex; flex-wrap: wrap; gap: 0;
+  border: 1px solid var(--line); border-radius: var(--r);
+  background: var(--surface); overflow: hidden;
+}
+.fact { flex: 1 1 128px; padding: 12px 16px; border-right: 1px solid var(--line-soft); }
+.fact:last-child { border-right: 0; }
+.fact dt { font-family: "IBM Plex Mono", monospace; font-size: 10.5px; letter-spacing: .12em;
+  text-transform: uppercase; color: var(--ink-3); margin: 0 0 3px; }
+.fact dd { margin: 0; font-family: "IBM Plex Mono", monospace; font-variant-numeric: tabular-nums;
+  font-size: 19px; font-weight: 500; letter-spacing: -.01em; }
+.fact dd small { font-size: 11px; color: var(--ink-3); font-weight: 400; margin-left: 3px; }
+.fact.warn dd { color: var(--bad); }
+
+/* ---------------------------------------------------------------- deck */
+.deck {
+  position: sticky; top: 0; z-index: 20;
+  margin: 26px 0 30px;
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--line); border-radius: var(--r);
+  box-shadow: var(--shadow);
+}
+.deck-row { display: flex; align-items: center; gap: 16px; padding: 11px 14px; flex-wrap: wrap; }
+button.play {
+  font: 600 12px/1 "IBM Plex Mono", monospace; letter-spacing: .06em;
+  color: var(--surface); background: var(--ink);
+  border: 0; border-radius: var(--r); padding: 9px 15px; cursor: pointer;
+  min-width: 92px;
+}
+button.play:hover { background: var(--accent); color: #10161E; }
+button.play:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+input[type=range] { flex: 1 1 260px; accent-color: var(--accent); min-width: 200px; height: 22px; }
+.stateline { display: flex; align-items: center; gap: 10px; font-family: "IBM Plex Mono", monospace; font-size: 12px; }
+.chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 9px; border-radius: 999px; font-size: 11px; font-weight: 600;
+  letter-spacing: .07em; text-transform: uppercase; white-space: nowrap;
+}
+.chip::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.chip.building { color: var(--accent);  background: var(--accent-soft); }
+.chip.armed    { color: var(--ink-2);   background: var(--surface-2); }
+.chip.intrade  { color: var(--good);    background: color-mix(in srgb, var(--good) 14%, transparent); }
+.chip.flat     { color: var(--ink-3);   background: var(--surface-2); }
+.clock { color: var(--ink-3); }
+.clock b { color: var(--ink); font-weight: 500; }
+
+/* --------------------------------------------------------------- panels */
+.panels { display: flex; flex-direction: column; gap: 34px; }
+.panel { border: 1px solid var(--line); border-radius: var(--r); background: var(--surface); box-shadow: var(--shadow); overflow: hidden; }
+.panel-head { display: flex; align-items: baseline; gap: 14px; padding: 15px 18px 13px; border-bottom: 1px solid var(--line-soft); flex-wrap: wrap; }
+.tag {
+  font-family: "Archivo", sans-serif; font-variation-settings: "wdth" 100;
+  font-weight: 700; font-size: 13px; letter-spacing: .04em;
+  color: var(--accent); border: 1px solid currentColor; border-radius: 2px;
+  padding: 1px 6px; align-self: center;
+}
+.panel-head h2 { font-size: 21px; font-weight: 600; letter-spacing: -.01em; }
+.panel-head p { margin: 0; color: var(--ink-2); font-size: 14px; flex: 1 1 320px; }
+.canvas-hold { background: var(--chart-bg); padding: 0; }
+canvas { display: block; width: 100%; height: 320px; }
+.panel-foot { display: grid; grid-template-columns: 1fr 1fr; gap: 0; border-top: 1px solid var(--line-soft); }
+.panel-foot div { padding: 13px 18px; }
+.panel-foot div + div { border-left: 1px solid var(--line-soft); }
+.panel-foot h3 { font-size: 10.5px; font-family: "IBM Plex Mono", monospace; letter-spacing: .12em;
+  text-transform: uppercase; color: var(--ink-3); margin-bottom: 5px; font-weight: 500; }
+.panel-foot p { margin: 0; font-size: 13.5px; color: var(--ink-2); line-height: 1.5; }
+
+/* ---------------------------------------------------------------- close */
+.close { margin-top: 52px; border-top: 2px solid var(--ink); padding-top: 22px; }
+.close h2 { font-size: 26px; font-weight: 700; letter-spacing: -.015em; margin-bottom: 6px; }
+.close > p { color: var(--ink-2); max-width: 64ch; }
+.qs { list-style: none; padding: 0; margin: 22px 0 0; display: flex; flex-direction: column; gap: 2px; counter-reset: q; }
+.qs li { display: grid; grid-template-columns: 34px 1fr; gap: 12px; padding: 13px 0; border-bottom: 1px solid var(--line-soft); }
+.qs li::before {
+  counter-increment: q; content: "Q" counter(q);
+  font-family: "IBM Plex Mono", monospace; font-size: 11px; font-weight: 600;
+  color: var(--accent); padding-top: 3px;
+}
+/* The ::before counter is itself a grid item, so the text children have to be
+   pinned to column 2 or the second one wraps under the 34px marker column. */
+.qs li b, .qs li span { grid-column: 2; }
+.qs b { font-weight: 600; }
+.qs span { color: var(--ink-2); display: block; font-size: 14px; margin-top: 2px; }
+
+.legend { display: flex; flex-wrap: wrap; gap: 14px 20px; padding: 12px 18px; border-top: 1px solid var(--line-soft);
+  font-family: "IBM Plex Mono", monospace; font-size: 11px; color: var(--ink-3); }
+.legend i { display: inline-block; width: 11px; height: 11px; border-radius: 2px; vertical-align: -1px; margin-right: 6px; }
+
+@media (max-width: 720px) {
+  .panel-foot { grid-template-columns: 1fr; }
+  .panel-foot div + div { border-left: 0; border-top: 1px solid var(--line-soft); }
+  canvas { height: 260px; }
+}
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+
+<div class="wrap">
+
+<header class="top">
+  <div class="eyebrow">AreaTrap · NQ · 30-second bars · one cycle</div>
+  <h1>Four ways to draw <em>the same trade</em></h1>
+  <p class="lede">
+    Every panel below renders the <b>identical 65 bars</b> — one full AreaTrap cycle: a 20-minute
+    profile window, a shallow break under the value area low on draining volume, absorption that
+    refuses to make a new low, and the close back inside that arms the long. Only the
+    <i>drawing</i> changes. Drag the scrubber to move all four charts through the cycle together;
+    the profile builds live while the window is open, then freezes.
+  </p>
+  <dl class="facts">
+    <div class="fact"><dt>Value area</dt><dd id="f-va">11.00<small>pts</small></dd></div>
+    <div class="fact"><dt>Window range</dt><dd id="f-range">33.0<small>pts</small></dd></div>
+    <div class="fact"><dt>Break depth</dt><dd id="f-depth">5.8<small>pts</small></dd></div>
+    <div class="fact"><dt>Risk</dt><dd id="f-risk">9.3<small>pts</small></dd></div>
+    <div class="fact"><dt>Reward</dt><dd id="f-reward">8.4<small>pts</small></dd></div>
+    <div class="fact warn"><dt>R : R</dt><dd id="f-rr">0.90</dd></div>
+  </dl>
+</header>
+
+<div class="deck">
+  <div class="deck-row">
+    <button class="play" id="play" type="button">▶ Play</button>
+    <input type="range" id="scrub" min="0" max="64" value="64" step="1" aria-label="Bar cursor">
+    <div class="stateline">
+      <span class="chip flat" id="chip">Flat</span>
+      <span class="clock">bar <b id="barno">65</b>/65 · <b id="clockt">09:52:00</b></span>
+    </div>
+  </div>
+</div>
+
+<div class="panels">
+
+  <section class="panel">
+    <div class="panel-head">
+      <span class="tag">A</span>
+      <h2>Session box</h2>
+      <p>The reference look. Histogram anchored inside the window, box around it, the three levels
+         projected right to the live bar.</p>
+    </div>
+    <div class="canvas-hold"><canvas id="cA"></canvas></div>
+    <div class="panel-foot">
+      <div><h3>Reads well</h3><p>The window is unmistakable — you can see exactly which bars built
+        the area and which are trading against it. Closest to the chart you sent.</p></div>
+      <div><h3>Costs</h3><p>The histogram sits on top of the first third of the price action. On a
+        10-minute window that is most of the window.</p></div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head">
+      <span class="tag">B</span>
+      <h2>Projected band</h2>
+      <p>The value area as a filled zone thrown forward across the whole chart. The histogram fades
+         out the moment the window closes.</p>
+    </div>
+    <div class="canvas-hold"><canvas id="cB"></canvas></div>
+    <div class="panel-foot">
+      <div><h3>Reads well</h3><p>Inside-or-outside is answered at a glance, which is the only
+        question the entry rule asks. Cleanest of the four to actually trade off.</p></div>
+      <div><h3>Costs</h3><p>Once the histogram is gone you lose the shape of the auction — you can
+        no longer see whether the POC was a spike or a plateau.</p></div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head">
+      <span class="tag">C</span>
+      <h2>Split delta</h2>
+      <p>Each profile row split by aggressor: sell-initiated volume to the left of the spine,
+         buy-initiated to the right. Absorption becomes visible in the profile itself.</p>
+    </div>
+    <div class="canvas-hold"><canvas id="cC"></canvas></div>
+    <div class="panel-foot">
+      <div><h3>Reads well</h3><p>The only look where the absorption step is <i>shown</i> rather than
+        inferred: heavy sell volume piled at a price the market refused to leave.</p></div>
+      <div><h3>Costs</h3><p>Twice the ink and it needs volumetric or tick data to be honest. Drawn
+        from bar OHLCV alone the split is an estimate, and an estimate here is a lie.</p></div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head">
+      <span class="tag">D</span>
+      <h2>Right ladder</h2>
+      <p>Profile pinned to the right gutter where it never touches price, plus a status block that
+         states the machine's state in words.</p>
+    </div>
+    <div class="canvas-hold"><canvas id="cD"></canvas></div>
+    <div class="panel-foot">
+      <div><h3>Reads well</h3><p>Price action is completely unobstructed, and you can read what the
+        strategy is doing without inferring it from shapes. Best for Playback debugging.</p></div>
+      <div><h3>Costs</h3><p>The profile no longer lines up in time with the bars that built it, so
+        the link between window and area is something you have to know rather than see.</p></div>
+    </div>
+  </section>
+
+</div>
+
+<div class="legend">
+  <span><i style="background:#E0A63C"></i>Value area / profile</span>
+  <span><i style="background:#F2C868"></i>POC</span>
+  <span><i style="background:#58B49F"></i>Up bar</span>
+  <span><i style="background:#C05C63"></i>Down bar</span>
+  <span><i style="background:#FF5C4D"></i>Absorption</span>
+  <span><i style="background:#7C8B98"></i>Draining volume</span>
+</div>
+
+<section class="close">
+  <h2>What I need from you</h2>
+  <p>Pick a look — or mix them, they are parameters, not architectures. Then these are the design
+     decisions that change what gets built, in the order they matter.</p>
+  <ol class="qs">
+    <li><b>The R : R above is 0.90, and that is structural, not bad luck.</b>
+      <span>Entering on the <i>close</i> back inside costs you the whole reclaim distance, while the
+      stop still sits under the break low. Options: cap how deep a break may go and still qualify;
+      enter with a resting limit at the value area low instead of on the close; or target beyond the
+      far side. Which one do you want to try first?</span></li>
+    <li><b>Does the window rebuild on the clock or after the trade?</b>
+      <span>You said the next window starts once the trade finishes. That means the cycle drifts off
+      the clock and the strategy is blind while it rebuilds. The alternative is a fixed grid where
+      the profile always rebuilds on the half hour and a trade can straddle the boundary.</span></li>
+    <li><b>How long may the area stay armed before it is stale?</b>
+      <span>If no setup appears, at some point a frozen 10-minute area from 40 minutes ago stops
+      describing anything. A timeout that forces a rebuild is one line of code and I would default
+      it on — the question is the number.</span></li>
+    <li><b>Minimum area width before the cycle is allowed to trade.</b>
+      <span>The trade targets the far side of the area. If the area is only a few points wide, that
+      target does not clear costs and the cycle should sit out rather than take it.</span></li>
+    <li><b>How hard is absorption allowed to be?</b>
+      <span>Look C draws it. Detecting it needs order flow, which restricts the strategy to Playback
+      and live — never the Strategy Analyzer. If you want it optional, the strategy needs a cheap
+      fallback mode that runs on bar volume alone.</span></li>
+  </ol>
+</section>
+
+</div>
+
+<script>
+const D = {"bars": [{"i": 0, "o": 20000.0, "h": 20004.81, "l": 19999.23, "c": 20003.32, "v": 998, "phase": "build"}, {"i": 1, "o": 20003.32, "h": 20008.59, "l": 20001.67, "c": 20007.87, "v": 847, "phase": "build"}, {"i": 2, "o": 20007.87, "h": 20013.72, "l": 20007.16, "c": 20012.66, "v": 590, "phase": "build"}, {"i": 3, "o": 20012.66, "h": 20012.82, "l": 20008.61, "c": 20009.02, "v": 826, "phase": "build"}, {"i": 4, "o": 20009.02, "h": 20010.2, "l": 20001.79, "c": 20003.49, "v": 805, "phase": "build"}, {"i": 5, "o": 20003.49, "h": 20004.01, "l": 19994.01, "c": 19994.11, "v": 984, "phase": "build"}, {"i": 6, "o": 19994.11, "h": 20003.28, "l": 19993.79, "c": 20001.63, "v": 1020, "phase": "build"}, {"i": 7, "o": 20001.63, "h": 20008.83, "l": 20001.38, "c": 20006.7, "v": 968, "phase": "build"}, {"i": 8, "o": 20006.7, "h": 20015.55, "l": 20006.38, "c": 20014.38, "v": 726, "phase": "build"}, {"i": 9, "o": 20014.38, "h": 20015.64, "l": 20007.98, "c": 20009.96, "v": 678, "phase": "build"}, {"i": 10, "o": 20009.96, "h": 20010.1, "l": 19995.79, "c": 19996.35, "v": 990, "phase": "build"}, {"i": 11, "o": 19996.35, "h": 19997.2, "l": 19985.9, "c": 19987.11, "v": 674, "phase": "build"}, {"i": 12, "o": 19987.11, "h": 19997.09, "l": 19987.11, "c": 19996.06, "v": 725, "phase": "build"}, {"i": 13, "o": 19996.06, "h": 20003.55, "l": 19995.87, "c": 20002.05, "v": 909, "phase": "build"}, {"i": 14, "o": 20002.05, "h": 20009.6, "l": 20000.88, "c": 20009.39, "v": 919, "phase": "build"}, {"i": 15, "o": 20009.39, "h": 20011.85, "l": 20000.28, "c": 20000.84, "v": 918, "phase": "build"}, {"i": 16, "o": 20000.84, "h": 20001.27, "l": 19992.3, "c": 19992.61, "v": 970, "phase": "build"}, {"i": 17, "o": 19992.61, "h": 19994.13, "l": 19983.61, "c": 19984.2, "v": 632, "phase": "build"}, {"i": 18, "o": 19984.2, "h": 19993.12, "l": 19982.62, "c": 19991.65, "v": 852, "phase": "build"}, {"i": 19, "o": 19991.65, "h": 19999.13, "l": 19990.49, "c": 19998.86, "v": 953, "phase": "build"}, {"i": 20, "o": 19998.86, "h": 20007.99, "l": 19995.91, "c": 20006.95, "v": 888, "phase": "build"}, {"i": 21, "o": 20006.95, "h": 20008.26, "l": 20001.23, "c": 20002.94, "v": 978, "phase": "build"}, {"i": 22, "o": 20002.94, "h": 20003.28, "l": 20001.81, "c": 20003.01, "v": 1118, "phase": "build"}, {"i": 23, "o": 20003.01, "h": 20003.18, "l": 19997.58, "c": 19998.14, "v": 887, "phase": "build"}, {"i": 24, "o": 19998.14, "h": 20003.32, "l": 19996.11, "c": 20003.23, "v": 1060, "phase": "build"}, {"i": 25, "o": 20003.23, "h": 20006.83, "l": 20002.79, "c": 20005.16, "v": 978, "phase": "build"}, {"i": 26, "o": 20005.16, "h": 20008.39, "l": 20004.37, "c": 20008.03, "v": 728, "phase": "build"}, {"i": 27, "o": 20008.03, "h": 20008.03, "l": 20004.4, "c": 20005.37, "v": 715, "phase": "build"}, {"i": 28, "o": 20005.37, "h": 20006.58, "l": 19993.69, "c": 19997.16, "v": 706, "phase": "build"}, {"i": 29, "o": 19997.16, "h": 19997.78, "l": 19991.77, "c": 19992.1, "v": 759, "phase": "build"}, {"i": 30, "o": 19992.1, "h": 19997.91, "l": 19989.77, "c": 19997.74, "v": 935, "phase": "build"}, {"i": 31, "o": 19997.74, "h": 19999.94, "l": 19997.03, "c": 19998.91, "v": 1161, "phase": "build"}, {"i": 32, "o": 19998.91, "h": 20004.77, "l": 19998.46, "c": 20003.79, "v": 1121, "phase": "build"}, {"i": 33, "o": 20003.79, "h": 20004.71, "l": 20000.2, "c": 20001.0, "v": 859, "phase": "build"}, {"i": 34, "o": 20001.0, "h": 20004.83, "l": 20000.87, "c": 20003.65, "v": 902, "phase": "build"}, {"i": 35, "o": 20003.65, "h": 20004.29, "l": 20001.35, "c": 20002.63, "v": 931, "phase": "build"}, {"i": 36, "o": 20002.63, "h": 20004.68, "l": 20000.07, "c": 20002.47, "v": 907, "phase": "build"}, {"i": 37, "o": 20002.47, "h": 20005.31, "l": 20000.62, "c": 20004.6, "v": 888, "phase": "build"}, {"i": 38, "o": 20004.6, "h": 20007.87, "l": 20002.82, "c": 20003.19, "v": 921, "phase": "build"}, {"i": 39, "o": 20003.19, "h": 20005.3, "l": 20001.86, "c": 20002.14, "v": 661, "phase": "build"}, {"i": 40, "o": 20002.14, "h": 20003.11, "l": 19993.94, "c": 19997.08, "v": 485, "phase": "break"}, {"i": 41, "o": 19997.08, "h": 19997.18, "l": 19993.58, "c": 19995.5, "v": 439, "phase": "break"}, {"i": 42, "o": 19995.5, "h": 19995.86, "l": 19992.04, "c": 19993.97, "v": 317, "phase": "break"}, {"i": 43, "o": 19993.97, "h": 19994.96, "l": 19991.63, "c": 19992.69, "v": 342, "phase": "break"}, {"i": 44, "o": 19992.69, "h": 19993.2, "l": 19990.74, "c": 19991.63, "v": 274, "phase": "break"}, {"i": 45, "o": 19991.63, "h": 19992.35, "l": 19990.83, "c": 19991.44, "v": 169, "phase": "break"}, {"i": 46, "o": 19991.44, "h": 19993.53, "l": 19991.36, "c": 19992.3, "v": 152, "phase": "break"}, {"i": 47, "o": 19992.3, "h": 19993.72, "l": 19991.11, "c": 19993.03, "v": 795, "phase": "absorb"}, {"i": 48, "o": 19993.03, "h": 19994.58, "l": 19991.16, "c": 19993.57, "v": 955, "phase": "absorb"}, {"i": 49, "o": 19993.57, "h": 19995.21, "l": 19990.98, "c": 19995.04, "v": 897, "phase": "absorb"}, {"i": 50, "o": 19995.04, "h": 19997.79, "l": 19990.99, "c": 19996.6, "v": 746, "phase": "absorb"}, {"i": 51, "o": 19996.6, "h": 19997.51, "l": 19990.89, "c": 19997.4, "v": 853, "phase": "absorb"}, {"i": 52, "o": 19997.4, "h": 20000.02, "l": 19996.07, "c": 19999.08, "v": 573, "phase": "reclaim"}, {"i": 53, "o": 19999.08, "h": 20001.16, "l": 19998.69, "c": 20000.54, "v": 615, "phase": "reclaim"}, {"i": 54, "o": 20000.54, "h": 20003.72, "l": 20000.01, "c": 20002.24, "v": 805, "phase": "reclaim"}, {"i": 55, "o": 20002.24, "h": 20004.49, "l": 20001.62, "c": 20003.6, "v": 668, "phase": "reclaim"}, {"i": 56, "o": 20003.6, "h": 20007.76, "l": 20003.57, "c": 20006.04, "v": 781, "phase": "reclaim"}, {"i": 57, "o": 20006.04, "h": 20007.93, "l": 20005.87, "c": 20007.25, "v": 772, "phase": "reclaim"}, {"i": 58, "o": 20007.25, "h": 20010.11, "l": 20006.77, "c": 20010.02, "v": 655, "phase": "reclaim"}, {"i": 59, "o": 20010.02, "h": 20011.9, "l": 20009.99, "c": 20011.12, "v": 894, "phase": "reclaim"}, {"i": 60, "o": 20011.12, "h": 20012.54, "l": 20011.04, "c": 20012.2, "v": 955, "phase": "reclaim"}, {"i": 61, "o": 20012.2, "h": 20014.45, "l": 20011.92, "c": 20013.08, "v": 755, "phase": "reclaim"}, {"i": 62, "o": 20013.08, "h": 20013.47, "l": 20012.95, "c": 20013.42, "v": 897, "phase": "reclaim"}, {"i": 63, "o": 20013.42, "h": 20016.28, "l": 20013.22, "c": 20014.6, "v": 865, "phase": "reclaim"}, {"i": 64, "o": 20014.6, "h": 20016.8, "l": 20014.32, "c": 20015.59, "v": 777, "phase": "reclaim"}], "rows": [{"p": 19982.5, "v": 38.7, "bid": 14.3, "ask": 24.4}, {"p": 19983.0, "v": 38.7, "bid": 14.3, "ask": 24.4}, {"p": 19983.5, "v": 67.5, "bid": 32.4, "ask": 35.0}, {"p": 19984.0, "v": 67.5, "bid": 32.4, "ask": 35.0}, {"p": 19984.5, "v": 67.5, "bid": 32.4, "ask": 35.0}, {"p": 19985.0, "v": 67.5, "bid": 32.4, "ask": 35.0}, {"p": 19985.5, "v": 95.5, "bid": 50.1, "ask": 45.4}, {"p": 19986.0, "v": 95.5, "bid": 50.1, "ask": 45.4}, {"p": 19986.5, "v": 95.5, "bid": 50.1, "ask": 45.4}, {"p": 19987.0, "v": 130.1, "bid": 62.9, "ask": 67.2}, {"p": 19987.5, "v": 130.1, "bid": 62.9, "ask": 67.2}, {"p": 19988.0, "v": 130.1, "bid": 62.9, "ask": 67.2}, {"p": 19988.5, "v": 130.1, "bid": 62.9, "ask": 67.2}, {"p": 19989.0, "v": 130.1, "bid": 62.9, "ask": 67.2}, {"p": 19989.5, "v": 185.1, "bid": 83.2, "ask": 101.8}, {"p": 19990.0, "v": 235.2, "bid": 101.8, "ask": 133.4}, {"p": 19990.5, "v": 235.2, "bid": 101.8, "ask": 133.4}, {"p": 19991.0, "v": 235.2, "bid": 101.8, "ask": 133.4}, {"p": 19991.5, "v": 293.6, "bid": 138.6, "ask": 155.0}, {"p": 19992.0, "v": 344.7, "bid": 170.7, "ask": 173.9}, {"p": 19992.5, "v": 344.7, "bid": 170.7, "ask": 173.9}, {"p": 19993.0, "v": 344.7, "bid": 170.7, "ask": 173.9}, {"p": 19993.5, "v": 383.1, "bid": 191.8, "ask": 191.3}, {"p": 19994.0, "v": 429.9, "bid": 221.3, "ask": 208.7}, {"p": 19994.5, "v": 401.2, "bid": 203.2, "ask": 198.0}, {"p": 19995.0, "v": 401.2, "bid": 203.2, "ask": 198.0}, {"p": 19995.5, "v": 523.2, "bid": 256.9, "ask": 266.3}, {"p": 19996.0, "v": 593.9, "bid": 283.0, "ask": 310.8}, {"p": 19996.5, "v": 593.9, "bid": 283.0, "ask": 310.8}, {"p": 19997.0, "v": 787.4, "bid": 354.6, "ask": 432.7}, {"p": 19997.5, "v": 798.7, "bid": 370.7, "ask": 427.9}, {"p": 19998.0, "v": 765.4, "bid": 343.2, "ask": 422.1}, {"p": 19998.5, "v": 765.4, "bid": 343.2, "ask": 422.1}, {"p": 19999.0, "v": 848.5, "bid": 374.0, "ask": 474.5}, {"p": 19999.5, "v": 798.4, "bid": 355.5, "ask": 442.9}, {"p": 20000.0, "v": 819.7, "bid": 419.2, "ask": 400.5}, {"p": 20000.5, "v": 1057.1, "bid": 507.0, "ask": 550.1}, {"p": 20001.0, "v": 1315.8, "bid": 654.3, "ask": 661.5}, {"p": 20001.5, "v": 1728.1, "bid": 826.7, "ask": 901.4}, {"p": 20002.0, "v": 1728.1, "bid": 826.7, "ask": 901.4}, {"p": 20002.5, "v": 1920.5, "bid": 919.6, "ask": 1000.8}, {"p": 20003.0, "v": 1920.5, "bid": 919.6, "ask": 1000.8}, {"p": 20003.5, "v": 1445.4, "bid": 724.6, "ask": 720.8}, {"p": 20004.0, "v": 1552.2, "bid": 784.8, "ask": 767.4}, {"p": 20004.5, "v": 1372.4, "bid": 671.5, "ask": 700.9}, {"p": 20005.0, "v": 932.3, "bid": 462.8, "ask": 469.6}, {"p": 20005.5, "v": 760.9, "bid": 377.9, "ask": 383.0}, {"p": 20006.0, "v": 797.2, "bid": 391.3, "ask": 405.9}, {"p": 20006.5, "v": 797.2, "bid": 391.3, "ask": 405.9}, {"p": 20007.0, "v": 704.5, "bid": 350.2, "ask": 354.3}, {"p": 20007.5, "v": 744.4, "bid": 375.3, "ask": 369.1}, {"p": 20008.0, "v": 625.2, "bid": 309.4, "ask": 315.7}, {"p": 20008.5, "v": 491.4, "bid": 246.2, "ask": 245.2}, {"p": 20009.0, "v": 374.4, "bid": 202.9, "ask": 171.5}, {"p": 20009.5, "v": 374.4, "bid": 202.9, "ask": 171.5}, {"p": 20010.0, "v": 326.1, "bid": 185.0, "ask": 141.0}, {"p": 20010.5, "v": 248.4, "bid": 136.1, "ask": 112.3}, {"p": 20011.0, "v": 248.4, "bid": 136.1, "ask": 112.3}, {"p": 20011.5, "v": 248.4, "bid": 136.1, "ask": 112.3}, {"p": 20012.0, "v": 210.1, "bid": 112.0, "ask": 98.1}, {"p": 20012.5, "v": 210.1, "bid": 112.0, "ask": 98.1}, {"p": 20013.0, "v": 118.3, "bid": 54.1, "ask": 64.2}, {"p": 20013.5, "v": 118.3, "bid": 54.1, "ask": 64.2}, {"p": 20014.0, "v": 76.2, "bid": 38.6, "ask": 37.6}, {"p": 20014.5, "v": 76.2, "bid": 38.6, "ask": 37.6}, {"p": 20015.0, "v": 76.2, "bid": 38.6, "ask": 37.6}, {"p": 20015.5, "v": 76.2, "bid": 38.6, "ask": 37.6}], "bucket": 0.5, "poc": 20002.5, "val": 19996.5, "vah": 20007.5, "coverage": 0.7112, "windowEnd": 39, "entry": {"i": 52, "price": 19999.08}, "exit": {"i": 56, "price": 20007.5}, "stop": 19989.74, "target": 20007.5, "absorbLow": 19990.74, "absorbBars": [47, 48, 49, 50, 51], "breakBars": [40, 41, 42, 43, 44, 45, 46], "areaWidth": 11.0, "rr": 0.9};
+const BARS = D.bars, N = BARS.length, BUCKET = D.bucket;
+const ENTRY = D.entry, EXIT = D.exit, WIN_END = D.windowEnd;
+const ABS = new Set(D.absorbBars), BRK = new Set(D.breakBars);
+
+const C = {
+  bg:'#0B0F14', grid:'#17202A', axis:'#55636F', up:'#58B49F', dn:'#C05C63',
+  wick:'#8494A1', va:'#E0A63C', poc:'#F2C868', hot:'#FF5C4D',
+  ink:'#C9D3DC', ink2:'#7C8B98', good:'#4FBF9E', bad:'#D9736F'
+};
+
+/* The value-area algorithm, same as the generator: start at the POC and keep
+   taking the heavier of the two rows above versus the two rows below until the
+   accumulated volume covers the target share. Recomputed on every frame while
+   the window is open, which is exactly why a live profile wanders. */
+function profileOf(upto) {
+  const acc = new Map(), bid = new Map(), ask = new Map();
+  for (let i = 0; i <= upto; i++) {
+    const b = BARS[i];
+    const lo = Math.floor(b.l / BUCKET), hi = Math.floor(b.h / BUCKET);
+    const n = Math.max(1, hi - lo + 1), share = b.v / n, up = b.c >= b.o;
+    for (let k = lo; k <= hi; k++) {
+      const p = +(k * BUCKET).toFixed(2);
+      acc.set(p, (acc.get(p) || 0) + share);
+      ask.set(p, (ask.get(p) || 0) + share * (up ? 0.63 : 0.37));
+      bid.set(p, (bid.get(p) || 0) + share * (up ? 0.37 : 0.63));
+    }
+  }
+  const prices = [...acc.keys()].sort((a, b) => a - b);
+  if (!prices.length) return null;
+  const total = [...acc.values()].reduce((a, b) => a + b, 0);
+  let poc = prices[0];
+  for (const p of prices) if (acc.get(p) > acc.get(poc)) poc = p;
+  let lo = prices.indexOf(poc), hi = lo, inside = acc.get(poc);
+  const target = total * 0.70;
+  while (inside < target && (lo > 0 || hi < prices.length - 1)) {
+    let up = 0, dn = 0;
+    for (const k of [1, 2]) if (hi + k < prices.length) up += acc.get(prices[hi + k]);
+    for (const k of [1, 2]) if (lo - k >= 0) dn += acc.get(prices[lo - k]);
+    if (up >= dn && hi < prices.length - 1) {
+      for (let k = 0; k < 2 && hi < prices.length - 1; k++) { hi++; inside += acc.get(prices[hi]); }
+    } else if (lo > 0) {
+      for (let k = 0; k < 2 && lo > 0; k++) { lo--; inside += acc.get(prices[lo]); }
+    } else break;
+  }
+  let peak = 0; for (const v of acc.values()) peak = Math.max(peak, v);
+  return { prices, acc, bid, ask, poc, val: prices[lo], vah: prices[hi], peak };
+}
+
+const FROZEN = profileOf(WIN_END);
+
+function stateAt(c) {
+  if (c <= WIN_END) return { key: 'building', label: 'Building', cls: 'building' };
+  if (c < ENTRY.i)  return { key: 'armed',    label: 'Armed',    cls: 'armed' };
+  if (c <= EXIT.i)  return { key: 'intrade',  label: 'In trade', cls: 'intrade' };
+  return { key: 'flat', label: 'Flat · rebuilding', cls: 'flat' };
+}
+function clockAt(i) {
+  const s = 9 * 3600 + 30 * 60 + i * 30;
+  const h = Math.floor(s / 3600), m = Math.floor(s / 60) % 60, ss = s % 60;
+  return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0')+':'+String(ss).padStart(2,'0');
+}
+
+/* ------------------------------------------------------------------ draw */
+const PAD = { l: 12, r: 96, t: 16, b: 12 };
+const VOL_H = 44, VGAP = 10;
+
+function setup(cv) {
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  const w = cv.clientWidth, h = cv.clientHeight;
+  cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
+  const ctx = cv.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  return { ctx, w, h };
+}
+
+function draw(cv, look, cur) {
+  const { ctx, w, h } = setup(cv);
+  ctx.clearRect(0, 0, w, h);
+  ctx.fillStyle = C.bg; ctx.fillRect(0, 0, w, h);
+
+  const x0 = PAD.l, x1 = w - PAD.r;
+  /* Look D reserves a gutter on the right and the plot ends before it, so the
+     ladder never overlaps a candle. Every x that bounds the plot uses xb1. */
+  const gutter = look === 'D' ? Math.min(140, (x1 - x0) * 0.17) : 0;
+  const xb1 = x1 - gutter;
+  const pTop = PAD.t, pBot = h - PAD.b - VOL_H - VGAP;
+  const vTop = pBot + VGAP, vBot = h - PAD.b;
+
+  let lo = Infinity, hi = -Infinity;
+  for (const b of BARS) { lo = Math.min(lo, b.l); hi = Math.max(hi, b.h); }
+  lo = Math.min(lo, D.stop) - 1.5; hi = Math.max(hi, D.target) + 1.5;
+  const Y = p => pBot - (p - lo) / (hi - lo) * (pBot - pTop);
+  const bw = (xb1 - x0) / N;
+  const X = i => x0 + (i + 0.5) * bw;
+  const cw = Math.max(2.4, bw * 0.62);
+
+  const live = cur <= WIN_END;
+  const prof = live ? profileOf(cur) : FROZEN;
+  const winX0 = X(0) - bw / 2, winX1 = X(Math.min(cur, WIN_END)) + bw / 2;
+
+  /* grid */
+  ctx.strokeStyle = C.grid; ctx.lineWidth = 1;
+  for (let k = 0; k <= 5; k++) {
+    const y = Math.round(pTop + (pBot - pTop) * k / 5) + .5;
+    ctx.beginPath(); ctx.moveTo(x0, y); ctx.lineTo(xb1, y); ctx.stroke();
+  }
+
+  /* ---- value area, expressed per look ---- */
+  if (prof) {
+    if (look === 'B' || look === 'D') {
+      ctx.fillStyle = 'rgba(224,166,60,.10)';
+      ctx.fillRect(winX0, Y(prof.vah), xb1 - winX0, Y(prof.val) - Y(prof.vah));
+    }
+    /* the three levels */
+    const lineTo = (look === 'A' || look === 'C')
+      ? Math.max(winX1, X(cur) + bw) : xb1;
+    ctx.lineWidth = 1;
+    for (const [p, col, dash] of [[prof.vah, C.va, []], [prof.val, C.va, []], [prof.poc, C.poc, [5, 4]]]) {
+      ctx.strokeStyle = col; ctx.setLineDash(dash);
+      ctx.beginPath(); ctx.moveTo(winX0, Y(p) + .5); ctx.lineTo(lineTo, Y(p) + .5); ctx.stroke();
+    }
+    ctx.setLineDash([]);
+    /* right-edge price tags */
+    ctx.font = '500 10px "IBM Plex Mono", monospace'; ctx.textBaseline = 'middle';
+    for (const [p, col, t] of [[prof.vah, C.va, 'VAH'], [prof.poc, C.poc, 'POC'], [prof.val, C.va, 'VAL']]) {
+      ctx.fillStyle = col; ctx.textAlign = 'left';
+      ctx.fillText(t + ' ' + p.toFixed(2), x1 + 5, Y(p));
+    }
+  }
+
+  /* ---- window box (A and C) ---- */
+  if ((look === 'A' || look === 'C') && prof) {
+    ctx.strokeStyle = 'rgba(224,166,60,.42)'; ctx.lineWidth = 1;
+    let bt = Infinity, bb = -Infinity;
+    for (let i = 0; i <= Math.min(cur, WIN_END); i++) { bt = Math.min(bt, BARS[i].l); bb = Math.max(bb, BARS[i].h); }
+    ctx.strokeRect(winX0 + .5, Y(bb) + .5, winX1 - winX0, Y(bt) - Y(bb));
+  }
+
+  /* ---- the profile histogram ---- */
+  if (prof) {
+    const rowH = Math.max(1.4, (BUCKET / (hi - lo)) * (pBot - pTop));
+    const maxW = look === 'D' ? gutter - 10 : (x1 - x0) * 0.24;
+    let alpha = 1;
+    if (look === 'B') alpha = live ? 0.85 : 0.14;          /* fades at freeze */
+    for (const p of prof.prices) {
+      const frac = prof.acc.get(p) / prof.peak;
+      const y = Y(p) - rowH / 2;
+      if (look === 'C') {
+        const spine = winX0 + maxW * 0.5;
+        const bw2 = (prof.bid.get(p) / prof.peak) * maxW * 0.5;
+        const aw2 = (prof.ask.get(p) / prof.peak) * maxW * 0.5;
+        ctx.fillStyle = 'rgba(192,92,99,.80)'; ctx.fillRect(spine - bw2, y, bw2, rowH - .6);
+        ctx.fillStyle = 'rgba(88,180,159,.80)'; ctx.fillRect(spine, y, aw2, rowH - .6);
+      } else if (look === 'D') {
+        const wpx = frac * maxW;
+        ctx.fillStyle = 'rgba(224,166,60,.70)';
+        ctx.fillRect(x1 - wpx, y, wpx, rowH - .6);
+      } else {
+        const wpx = frac * maxW;
+        const inVA = p >= prof.val && p <= prof.vah;
+        ctx.fillStyle = 'rgba(224,166,60,' + (alpha * (inVA ? .78 : .34)).toFixed(3) + ')';
+        ctx.fillRect(winX0, y, wpx, rowH - .6);
+      }
+    }
+    if (look === 'C') {
+      ctx.strokeStyle = 'rgba(124,139,152,.55)'; ctx.lineWidth = 1;
+      const spine = winX0 + maxW * 0.5;
+      ctx.beginPath(); ctx.moveTo(spine + .5, Y(prof.prices.at(-1))); ctx.lineTo(spine + .5, Y(prof.prices[0])); ctx.stroke();
+    }
+  }
+
+  /* ---- candles ---- */
+  for (let i = 0; i <= cur; i++) {
+    const b = BARS[i], x = X(i), up = b.c >= b.o;
+    ctx.strokeStyle = C.wick; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(Math.round(x) + .5, Y(b.h)); ctx.lineTo(Math.round(x) + .5, Y(b.l)); ctx.stroke();
+    ctx.fillStyle = up ? C.up : C.dn;
+    const yo = Y(b.o), yc = Y(b.c);
+    ctx.fillRect(x - cw / 2, Math.min(yo, yc), cw, Math.max(1.2, Math.abs(yc - yo)));
+  }
+
+  /* ---- absorption marker ---- */
+  const absVisible = [...ABS].filter(i => i <= cur);
+  if (absVisible.length) {
+    const xa = X(absVisible[0]) - bw, xb = X(absVisible.at(-1)) + bw;
+    const ya = Y(D.absorbLow);
+    if (look === 'C') {
+      ctx.strokeStyle = C.hot; ctx.lineWidth = 1.6;
+      ctx.beginPath(); ctx.moveTo(xa, ya + 3.5); ctx.lineTo(xb, ya + 3.5); ctx.stroke();
+    } else {
+      ctx.fillStyle = 'rgba(255,92,77,.16)'; ctx.strokeStyle = 'rgba(255,92,77,.85)'; ctx.lineWidth = 1.4;
+      ctx.beginPath(); ctx.ellipse((xa + xb) / 2, ya - 1, (xb - xa) / 2 + 3, 11, 0, 0, Math.PI * 2);
+      ctx.fill(); ctx.stroke();
+    }
+    ctx.fillStyle = C.hot; ctx.font = '600 9.5px "IBM Plex Mono", monospace';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+    ctx.fillText('ABSORPTION', (xa + xb) / 2, ya + 14);
+  }
+
+  /* ---- the trade ---- */
+  if (cur >= ENTRY.i) {
+    const xe = X(ENTRY.i), xx = X(Math.min(cur, EXIT.i));
+    ctx.setLineDash([4, 4]); ctx.lineWidth = 1;
+    ctx.strokeStyle = C.bad;
+    ctx.beginPath(); ctx.moveTo(xe, Y(D.stop) + .5); ctx.lineTo(Math.max(xx, xe + 20), Y(D.stop) + .5); ctx.stroke();
+    ctx.strokeStyle = C.good;
+    ctx.beginPath(); ctx.moveTo(xe, Y(D.target) + .5); ctx.lineTo(Math.max(xx, xe + 20), Y(D.target) + .5); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = 'rgba(79,191,158,.10)';
+    ctx.fillRect(xe, Y(D.target), Math.max(xx - xe, 20), Y(ENTRY.price) - Y(D.target));
+    ctx.fillStyle = 'rgba(217,115,111,.10)';
+    ctx.fillRect(xe, Y(ENTRY.price), Math.max(xx - xe, 20), Y(D.stop) - Y(ENTRY.price));
+    /* entry arrow */
+    ctx.fillStyle = C.good;
+    const ye = Y(ENTRY.price);
+    ctx.beginPath(); ctx.moveTo(xe, ye + 3); ctx.lineTo(xe - 5, ye + 12); ctx.lineTo(xe + 5, ye + 12); ctx.closePath(); ctx.fill();
+    const xlab = Math.max(xx, xe + 20) - 2;
+    ctx.font = '600 9.5px "IBM Plex Mono", monospace'; ctx.textAlign = 'right';
+    ctx.textBaseline = 'bottom'; ctx.fillStyle = C.good;
+    ctx.fillText('TARGET', xlab, Y(D.target) - 3);
+    ctx.textBaseline = 'top'; ctx.fillStyle = C.bad;
+    ctx.fillText('STOP', xlab, Y(D.stop) + 3);
+  }
+
+  /* ---- volume pane ---- */
+  let vmax = 0; for (const b of BARS) vmax = Math.max(vmax, b.v);
+  ctx.strokeStyle = C.grid; ctx.beginPath();
+  ctx.moveTo(x0, vBot + .5); ctx.lineTo(xb1, vBot + .5); ctx.stroke();
+  for (let i = 0; i <= cur; i++) {
+    const b = BARS[i], hgt = (b.v / vmax) * (vBot - vTop);
+    ctx.fillStyle = BRK.has(i) ? 'rgba(124,139,152,.9)'
+                  : ABS.has(i) ? C.hot
+                  : (b.c >= b.o ? 'rgba(88,180,159,.62)' : 'rgba(192,92,99,.62)');
+    ctx.fillRect(X(i) - cw / 2, vBot - hgt, cw, hgt);
+  }
+  /* declining-volume annotation, drawn once the break is on screen */
+  const brkV = [...BRK].filter(i => i <= cur);
+  if (brkV.length >= 3) {
+    const a = brkV[0], b = brkV.at(-1);
+    ctx.strokeStyle = C.hot; ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    ctx.moveTo(X(a), vBot - (BARS[a].v / vmax) * (vBot - vTop) - 4);
+    ctx.lineTo(X(b), vBot - (BARS[b].v / vmax) * (vBot - vTop) - 4);
+    ctx.stroke();
+  }
+
+  /* ---- status block (D only) ---- */
+  if (look === 'D') {
+    const st = stateAt(cur);
+    const bx = x0 + 8, by = pTop + 8;
+    ctx.fillStyle = 'rgba(11,15,20,.82)';
+    ctx.strokeStyle = 'rgba(85,99,111,.5)'; ctx.lineWidth = 1;
+    ctx.fillRect(bx, by, 168, 60); ctx.strokeRect(bx + .5, by + .5, 168, 60);
+    ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+    ctx.font = '600 10px "IBM Plex Mono", monospace';
+    ctx.fillStyle = st.key === 'intrade' ? C.good : st.key === 'building' ? C.va : C.ink2;
+    ctx.fillText(st.label.toUpperCase(), bx + 9, by + 9);
+    ctx.font = '400 10px "IBM Plex Mono", monospace'; ctx.fillStyle = C.ink2;
+    const wIn = Math.max(0, WIN_END - cur);
+    ctx.fillText(prof ? 'AREA  ' + (prof.vah - prof.val).toFixed(2) + ' pts' : 'AREA  —', bx + 9, by + 25);
+    ctx.fillText(cur <= WIN_END ? 'BUILD  ' + wIn + ' bars left'
+                                : (cur < ENTRY.i ? 'HUNT   break + absorb'
+                                                 : 'R:R    ' + D.rr.toFixed(2)), bx + 9, by + 40);
+  }
+
+  /* ---- axis ---- */
+  ctx.font = '400 9.5px "IBM Plex Mono", monospace'; ctx.fillStyle = C.axis;
+  ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+  ctx.fillText(clockAt(0), x0 + 1, vBot + 3);
+  ctx.textAlign = 'right';
+  ctx.fillText(clockAt(cur), xb1, vBot + 3);
+}
+
+/* ------------------------------------------------------------------ wire */
+const cvs = { A: document.getElementById('cA'), B: document.getElementById('cB'),
+              C: document.getElementById('cC'), D: document.getElementById('cD') };
+const scrub = document.getElementById('scrub');
+const chip = document.getElementById('chip');
+const barno = document.getElementById('barno');
+const clockt = document.getElementById('clockt');
+const playBtn = document.getElementById('play');
+
+function render() {
+  const cur = +scrub.value;
+  for (const k in cvs) draw(cvs[k], k, cur);
+  const st = stateAt(cur);
+  chip.className = 'chip ' + st.cls; chip.textContent = st.label;
+  barno.textContent = cur + 1; clockt.textContent = clockAt(cur);
+}
+
+let timer = null;
+function stop() { if (timer) { clearInterval(timer); timer = null; } playBtn.textContent = '▶ Play'; }
+playBtn.addEventListener('click', () => {
+  if (timer) return stop();
+  if (+scrub.value >= N - 1) scrub.value = 0;
+  playBtn.textContent = '❚❚ Pause';
+  timer = setInterval(() => {
+    scrub.value = +scrub.value + 1;
+    render();
+    if (+scrub.value >= N - 1) stop();
+  }, 90);
+});
+scrub.addEventListener('input', () => { stop(); render(); });
+window.addEventListener('resize', render);
+
+document.getElementById('f-va').innerHTML = D.areaWidth.toFixed(2) + '<small>pts</small>';
+document.getElementById('f-depth').innerHTML = (D.val - D.absorbLow).toFixed(1) + '<small>pts</small>';
+document.getElementById('f-risk').innerHTML = (ENTRY.price - D.stop).toFixed(1) + '<small>pts</small>';
+document.getElementById('f-reward').innerHTML = (D.target - ENTRY.price).toFixed(1) + '<small>pts</small>';
+document.getElementById('f-rr').textContent = D.rr.toFixed(2);
+{
+  let lo = Infinity, hi = -Infinity;
+  for (let i = 0; i <= WIN_END; i++) { lo = Math.min(lo, BARS[i].l); hi = Math.max(hi, BARS[i].h); }
+  document.getElementById('f-range').innerHTML = (hi - lo).toFixed(1) + '<small>pts</small>';
+}
+
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(render);
+render();
+</script>
