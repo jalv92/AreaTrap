@@ -48,8 +48,22 @@ done >> "$COMBINED"
 
 echo ""
 echo "== 2/2  all NT8 files against NT8 references"
-if nt8c check "$COMBINED" 2>&1 | tee "$TMP/out.txt" | grep -q "error CS"; then
+
+# NEVER pipe nt8c into grep here. `nt8c check` exits 5 when it finds errors, and
+# under `set -o pipefail` that makes the whole pipeline non-zero -- so
+# `if nt8c ... | grep -q "error CS"` is FALSE exactly when the compile FAILED and
+# the gate prints "compiles clean" on a broken build. That inversion shipped a
+# NinjaScript file with 10 CS0104 errors straight to NinjaTrader. Capture first,
+# then test, and trust the exit code as well as the text.
+set +e
+nt8c check "$COMBINED" > "$TMP/out.txt" 2>&1
+rc=$?
+set -e
+
+if [ "$rc" -ne 0 ] || grep -q "error CS" "$TMP/out.txt"; then
   sed "s#$COMBINED#AreaTrapCombined.cs#" "$TMP/out.txt"
+  echo ""
+  echo "  FAILED (nt8c exit $rc)"
   exit 1
 fi
 echo "  compiles clean"

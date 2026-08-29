@@ -22,7 +22,6 @@
 #region Using declarations
 using System;
 using System.ComponentModel.DataAnnotations;
-using System.Windows.Media;
 using NinjaTrader.Data;
 using NinjaTrader.Gui;
 using NinjaTrader.Gui.Chart;
@@ -30,6 +29,11 @@ using NinjaTrader.NinjaScript;
 using SharpDX;
 using SharpDX.Direct2D1;
 using AreaTrapCore;
+// NOT System.Windows.Media. It also defines SolidColorBrush, and importing both
+// makes every brush declaration in this file CS0104-ambiguous. NinjaScript's own
+// indicator template ships that using for WPF Brushes in AddPlot; a SharpDX
+// renderer does not want it. If a plot ever needs WPF brushes here, fully qualify
+// them rather than adding the using back.
 #endregion
 
 namespace NinjaTrader.NinjaScript.Indicators
