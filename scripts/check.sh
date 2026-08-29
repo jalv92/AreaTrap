@@ -18,9 +18,11 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SRC="$ROOT/ninjascript"
 
-# Files that reference NinjaTrader types. AreaTrapCore is deliberately NOT here:
-# it has zero NT8 references and the test project is its gate.
-NT8_FILES=()
+# The combined compilation unit, in dependency order. AreaTrapCore has zero NT8
+# references and the test project is its real gate, but it belongs in this list
+# anyway: the strategy uses its types, and `nt8c check` on one file cannot see a
+# sibling's, which is what makes the concatenation necessary in the first place.
+NT8_FILES=(AreaTrapCore AreaTrapStrategy)
 
 echo "== 1/2  pure core + assert suite"
 dotnet run --project "$ROOT/tests" | tail -3
